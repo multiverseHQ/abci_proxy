@@ -5,7 +5,7 @@
 
 --> tendermint docker (0.10.0) use it as it is.
 
---> ABCI proxy (we need to work on it)
+--> ABCI proxy (we need to work on it https://github.com/tendermint/abci/tree/feature/abci-proxy/example/proxy)
 
 --> Counter Example Application (https://github.com/tendermint/abci/tree/master/example/counter)
 
