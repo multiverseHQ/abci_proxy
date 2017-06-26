@@ -1,13 +1,13 @@
 
 # ABCI Proxy
-- create 3 docker container 
---> tendermint docker (0.10.0)
---> ABCI proxy
+- launch golang code
+--> tendermint docker (0.10.0) use it as it is.
+--> ABCI proxy (we need to work on it)
 --> Counter Example Application (https://github.com/tendermint/abci/tree/master/example/counter)
 # 1st Goal
---> make sure the 3 dockers communicate well together.
+--> make sure the 3 instances talk to each other.
 
 # 2nd Goal
-- run the 3 dockers on 5 nodes (3 first nodes are validators, 2 others just observer)
+- run the 3 dockers on 2 nodes (2 first nodes are validators, 1 others just observer)
 
-when the block 1000 arrives, then ABCi proxy change the 2 observers to validators
+when the block 1000 arrives, then ABCi proxy change the 1 observers to validators
