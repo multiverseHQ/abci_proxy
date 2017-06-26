@@ -14,6 +14,6 @@
 --> make sure the 3 instances talk to each other.
 
 # 2nd Goal
-- run the 3 dockers on 2 nodes (2 first nodes are validators, 1 others just observer)
+- run the 3 instances on 4 nodes (3 first nodes are validators, 1 others just observer)
 
-when the block 1000 arrives, then ABCi proxy change the 1 observers to validators
+when the block 1000 arrives, then ABCi proxy change the 1 observer to 1 validator
