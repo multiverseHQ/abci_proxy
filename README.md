@@ -1,10 +1,16 @@
 
 # ABCI Proxy
+
 - launch golang code
+
 --> tendermint docker (0.10.0) use it as it is.
+
 --> ABCI proxy (we need to work on it)
+
 --> Counter Example Application (https://github.com/tendermint/abci/tree/master/example/counter)
+
 # 1st Goal
+
 --> make sure the 3 instances talk to each other.
 
 # 2nd Goal
