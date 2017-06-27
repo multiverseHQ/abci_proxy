@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"fmt"
 
 	cmn "github.com/tendermint/tmlibs/common"
 	"github.com/tendermint/tmlibs/log"
@@ -13,6 +14,13 @@ import (
 )
 
 func main() {
+	fmt.Printf("\n")
+	fmt.Printf("Welcome to Multiverse\n")
+	fmt.Printf("\n")
+	fmt.Printf("This is the ABCi Proxy to handle validators sets changes on the flyyyyy .\n")
+	fmt.Printf("\n")
+	fmt.Printf("<3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3\n")
+	fmt.Printf("\n")
 	addrPtr := flag.String("addr", "tcp://0.0.0.0:46658", "Listen address")
 	abciPtr := flag.String("abci", "socket", "socket | grpc")
 	proxyPtr := flag.String("proxy", "tcp://0.0.0.0:46658", "Address of next abci app")
