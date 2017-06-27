@@ -8,7 +8,7 @@ import (
 	"github.com/tendermint/tmlibs/log"
 
 	abcicli "github.com/tendermint/abci/client"
-	"github.com/multiverseHQ/abci_proxy/proxy"
+	"github.com/MultiverseHQ/abci_proxy/proxy"
 	"github.com/tendermint/abci/server"
 )
 
