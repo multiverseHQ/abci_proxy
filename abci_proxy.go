@@ -23,7 +23,7 @@ func main() {
 	fmt.Printf("\n")
 	addrPtr := flag.String("addr", "tcp://0.0.0.0:46658", "Listen address")
 	abciPtr := flag.String("abci", "socket", "socket | grpc")
-	proxyPtr := flag.String("proxy", "tcp://0.0.0.0:46658", "Address of next abci app")
+	proxyPtr := flag.String("proxy", "tcp://0.0.0.0:46659", "Address of next abci app")
 	flag.Parse()
 
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
