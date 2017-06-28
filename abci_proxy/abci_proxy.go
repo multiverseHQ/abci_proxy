@@ -2,14 +2,14 @@ package main
 
 import (
 	"flag"
-	"os"
 	"fmt"
+	"os"
 
+	"github.com/multiverseHQ/abci_proxy"
 	cmn "github.com/tendermint/tmlibs/common"
 	"github.com/tendermint/tmlibs/log"
 
 	abcicli "github.com/tendermint/abci/client"
-	"github.com/MultiverseHQ/abci_proxy/proxy"
 	"github.com/tendermint/abci/server"
 )
 
@@ -31,7 +31,7 @@ func main() {
 	next := abcicli.NewSocketClient(*proxyPtr, true)
 
 	// Start the listener
-	srv, err := server.NewServer(*addrPtr, *abciPtr, proxy.NewProxyApp(next, []byte("echo")))
+	srv, err := server.NewServer(*addrPtr, *abciPtr, abciproxy.NewProxyApp(next, []byte("echo")))
 	if err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
