@@ -6,6 +6,7 @@ import (
 
 	abcicli "github.com/tendermint/abci/client"
 	"github.com/tendermint/abci/types"
+	tmlog "github.com/tendermint/tmlibs/log"
 )
 
 // ProxyApplication is a super-simple proxy example.
@@ -14,15 +15,22 @@ import (
 type ProxyApplication struct {
 	types.BaseApplication
 	next   abcicli.Client
+	logger tmlog.Logger
 	prefix []byte
 }
 
 var _ types.Application = &ProxyApplication{}
 
 func NewProxyApp(next abcicli.Client, prefix []byte) *ProxyApplication {
+	return NewProxyAppWithLogger(next, prefix, tmlog.NewNopLogger())
+
+}
+
+func NewProxyAppWithLogger(next abcicli.Client, prefix []byte, logger tmlog.Logger) *ProxyApplication {
 	return &ProxyApplication{
 		next:   next,
 		prefix: prefix,
+		logger: logger,
 	}
 }
 

@@ -1,19 +1,33 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
-	"github.com/multiverseHQ/abci_proxy"
+	"github.com/MultiverseHQ/abci_proxy"
 	cmn "github.com/tendermint/tmlibs/common"
-	"github.com/tendermint/tmlibs/log"
+	tmlog "github.com/tendermint/tmlibs/log"
 
 	abcicli "github.com/tendermint/abci/client"
 	"github.com/tendermint/abci/server"
 )
 
-func main() {
+var logger tmlog.Logger
+var opts options
+
+func init() {
+	opts = ParseOptions()
+
+	baselogger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stderr))
+
+	if opts.Verbose == true {
+		logger = tmlog.NewFilter(baselogger, tmlog.AllowAll())
+	} else {
+		logger = tmlog.NewFilter(baselogger, tmlog.AllowInfo())
+	}
+}
+
+func Execute() error {
 	fmt.Printf("\n")
 	fmt.Printf("Welcome to Multiverse\n")
 	fmt.Printf("\n")
@@ -21,25 +35,17 @@ func main() {
 	fmt.Printf("\n")
 	fmt.Printf("<3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3\n")
 	fmt.Printf("\n")
-	addrPtr := flag.String("addr", "tcp://0.0.0.0:46658", "Listen address")
-	abciPtr := flag.String("abci", "socket", "socket | grpc")
-	proxyPtr := flag.String("proxy", "tcp://0.0.0.0:46659", "Address of next abci app")
-	flag.Parse()
 
-	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-
-	next := abcicli.NewSocketClient(*proxyPtr, true)
+	next := abcicli.NewSocketClient(opts.ProxyAddress, true)
 
 	// Start the listener
-	srv, err := server.NewServer(*addrPtr, *abciPtr, abciproxy.NewProxyApp(next, []byte("echo")))
+	srv, err := server.NewServer(opts.Address, opts.ABCIType, abciproxy.NewProxyApp(next, []byte("echo")))
 	if err != nil {
-		logger.Error(err.Error())
-		os.Exit(1)
+		return err
 	}
 	srv.SetLogger(logger.With("module", "abci-server"))
 	if _, err := srv.Start(); err != nil {
-		logger.Error(err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	// Wait forever
@@ -48,4 +54,11 @@ func main() {
 		srv.Stop()
 	})
 
+	return nil
+}
+
+func main() {
+	if err := Execute(); err != nil {
+		logger.Error("unhandled error", "error", err)
+	}
 }
