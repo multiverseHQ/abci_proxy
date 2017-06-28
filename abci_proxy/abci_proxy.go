@@ -37,7 +37,11 @@ func Execute() error {
 	fmt.Printf("<3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3\n")
 	fmt.Printf("\n")
 
-	next := abcicli.NewSocketClient(opts.ProxyAddress, true)
+	next := abcicli.NewSocketClient(opts.AppAddress, true)
+	logger.Info("Connecting to client target application")
+	if _, err := next.Start(); err != nil {
+		return err
+	}
 
 	// Start the listener
 	srv, err := server.NewServer(opts.Address, opts.ABCIType, abciproxy.NewProxyApp(next, []byte("echo")))
