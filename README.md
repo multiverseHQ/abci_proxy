@@ -1,5 +1,16 @@
-
 # ABCI Proxy
+
+## Role and purpose
+
+The role of ABCI proxy is to separate the
+[ABCI interface](https://github.com/tendermint/abci/tree/master/client)
+into two set of interface. One, internal for the ABCI 1-Click project
+to manage the set of validator and observer on the fly via a
+web-interface, and another set to pass-by request and response between
+tendermint and the target client app.
+
+
+## Hard test infrastructure
 
 - launch golang code
 
