@@ -22,6 +22,7 @@ func init() {
 
 	if opts.Verbose == true {
 		logger = tmlog.NewFilter(baselogger, tmlog.AllowAll())
+		logger.Info("Debug output")
 	} else {
 		logger = tmlog.NewFilter(baselogger, tmlog.AllowInfo())
 	}

@@ -39,18 +39,21 @@ func (app *ProxyApplication) makeEcho(tx []byte) string {
 }
 
 func (app *ProxyApplication) Info() (resInfo types.ResponseInfo) {
+	LogCall(app.logger)
 	// TODO: better error handling!
 	info, _ := app.next.InfoSync()
 	return info
 }
 
 func (app *ProxyApplication) SetOption(key string, value string) (log string) {
+	LogCall(app.logger, "key", key, "value", value)
 	// TODO: better error handling!
 	res := app.next.SetOptionSync(key, value)
 	return res.Log
 }
 
 func (app *ProxyApplication) DeliverTx(tx []byte) types.Result {
+	LogCall(app.logger, "tx", tx)
 	if bytes.HasPrefix(tx, app.prefix) {
 		return types.NewResultOK(nil, app.makeEcho(tx))
 	}
@@ -58,6 +61,7 @@ func (app *ProxyApplication) DeliverTx(tx []byte) types.Result {
 }
 
 func (app *ProxyApplication) CheckTx(tx []byte) types.Result {
+	LogCall(app.logger, "tx", tx)
 	if bytes.HasPrefix(tx, app.prefix) {
 		return types.NewResultOK(nil, app.makeEcho(tx))
 	}
@@ -65,26 +69,31 @@ func (app *ProxyApplication) CheckTx(tx []byte) types.Result {
 }
 
 func (app *ProxyApplication) Commit() types.Result {
+	LogCall(app.logger)
 	return app.next.CommitSync()
 }
 
 func (app *ProxyApplication) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQuery) {
+	LogCall(app.logger, "query", reqQuery)
 	// TODO: better error handling!
 	res, _ := app.next.QuerySync(reqQuery)
 	return res
 }
 
 func (app *ProxyApplication) InitChain(validators []*types.Validator) {
+	LogCall(app.logger, "validators", validators)
 	// TODO: better error handling!
 	_ = app.next.InitChainSync(validators)
 }
 
 func (app *ProxyApplication) BeginBlock(hash []byte, header *types.Header) {
+	LogCall(app.logger, "hash", hash, "header", header)
 	// TODO: better error handling!
 	_ = app.next.BeginBlockSync(hash, header)
 }
 
 func (app *ProxyApplication) EndBlock(height uint64) (resEndBlock types.ResponseEndBlock) {
+	LogCall(app.logger, "height", height)
 	// TODO: better error handling!
 	res, _ := app.next.EndBlockSync(height)
 	return res
