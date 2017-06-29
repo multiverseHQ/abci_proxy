@@ -17,6 +17,8 @@ type ProxyApplication struct {
 	next   abcicli.Client
 	logger tmlog.Logger
 	prefix []byte
+
+	newValidators chan []*types.Validator
 }
 
 var _ types.Application = &ProxyApplication{}
@@ -31,6 +33,8 @@ func NewProxyAppWithLogger(next abcicli.Client, prefix []byte, logger tmlog.Logg
 		next:   next,
 		prefix: prefix,
 		logger: logger,
+		//TODO: maybe a buffer of one isn't enough.
+		newValidators: make(chan []*types.Validator, 1),
 	}
 }
 
@@ -92,9 +96,38 @@ func (app *ProxyApplication) BeginBlock(hash []byte, header *types.Header) {
 	_ = app.next.BeginBlockSync(hash, header)
 }
 
+func (app *ProxyApplication) ChangeValidator(newValidators []*types.Validator) {
+	app.logger.Debug("received new validator set", "validators", newValidators)
+	app.newValidators <- newValidators
+}
+
+func mergeValidatorChanges(merged, newChanges []*types.Validator) []*types.Validator {
+	//TODO: maybe we should require something more involved, like notsubmitting two same changes
+	return append(merged, newChanges...)
+}
+
 func (app *ProxyApplication) EndBlock(height uint64) (resEndBlock types.ResponseEndBlock) {
 	LogCall(app.logger, "height", height)
 	// TODO: better error handling!
 	res, _ := app.next.EndBlockSync(height)
+
+	// get the latest validator changes by consuming all pending changes
+	diffs := make([]*types.Validator, 0)
+	haveValidators := true
+	for haveValidators == true {
+		select {
+		case validators := <-app.newValidators:
+			diffs = mergeValidatorChanges(diffs, validators)
+		default:
+			//if none pending simply stop the consuming
+			haveValidators = false
+		}
+	}
+
+	res.Diffs = diffs
+	if len(diffs) != 0 {
+		app.logger.Debug("submitting new validators", "validators", diffs)
+	}
+
 	return res
 }
