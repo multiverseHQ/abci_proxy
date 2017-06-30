@@ -91,7 +91,7 @@ func (n *BCNode) Start() error {
 		return err
 	}
 	//let time to the app to start
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	//start proxy
 	n.appClient = abcicli.NewSocketClient(fmt.Sprintf("tcp://127.0.0.1:%d", n.AppPort()), true)
