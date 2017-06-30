@@ -48,6 +48,10 @@ const RPCPortStart int = 50100
 const P2PPortStart int = 50200
 const AppPortStart int = 50300
 
+// NewBCNode instantiate a new node for testing ID should be unique
+// between 0 and 99, rootDir is the path to a directory where all
+// config data will be stored. genesisPath is the path to the genesis
+// file to use
 func NewBCNode(ID BCNodeID, genesisPath string, rootDir string) (*BCNode, error) {
 	if ID > MaxBCNodeID {
 		return nil, fmt.Errorf("Maximum  BCNodeID for test is %d, got %d", MaxBCNodeID, ID)
@@ -76,7 +80,9 @@ func NewBCNode(ID BCNodeID, genesisPath string, rootDir string) (*BCNode, error)
 	return res, nil
 }
 
-func (n *BCNode) Start() error {
+// Start starts the node ;)
+
+func (n *BCNode) Start(peers []*BCNode) error {
 	var err error
 	//start app
 	log.Printf("Starting app %d", n.ID)
@@ -112,13 +118,16 @@ func (n *BCNode) Start() error {
 		return err
 	}
 
+	//generate the list of peers
+
 	log.Printf("Starting tendermint node %d", n.ID)
 	//start tendermint node
 	n.tmNodeCmd = exec.Command("tendermint", "node",
 		"--home", n.wDir,
 		"--proxy_app", fmt.Sprintf("tcp://127.0.0.1:%d", n.ProxyAppPort()),
 		"--p2p.laddr", fmt.Sprintf("tcp://127.0.0.1:%d", n.P2PPort()),
-		"--rpc.laddr", fmt.Sprintf("tcp://127.0.0.1:%d", n.RPCPort()))
+		"--rpc.laddr", fmt.Sprintf("tcp://127.0.0.1:%d", n.RPCPort()),
+		"--p2p.seeds="+n.FormatPeerListOptions(peers))
 	//save the output in the buffer
 	n.tmNodeCmd.Stdin = nil
 	n.tmNodeCmd.Stdout = n.tmNodeOutput
@@ -132,6 +141,21 @@ func (n *BCNode) Start() error {
 	return nil
 }
 
+func (n *BCNode) FormatPeerListOptions(peers []*BCNode) string {
+	res := ""
+	for _, p := range peers {
+		if p.ID == n.ID {
+			continue
+		}
+		if len(res) > 0 {
+			res += ","
+		}
+		res += fmt.Sprintf("127.0.0.1:%d", p.P2PPort())
+	}
+	return res
+}
+
+// Stop stops the node
 func (n *BCNode) Stop() error {
 	//stop tendermint
 	err := n.tmNodeCmd.Process.Signal(syscall.SIGINT)
@@ -150,6 +174,7 @@ func (n *BCNode) Stop() error {
 	return nil
 }
 
+// these method just define some convention on the port these nodes uses
 func (n *BCNode) ProxyAppPort() int {
 	return ProxyAppPortStart + int(n.ID)
 }
