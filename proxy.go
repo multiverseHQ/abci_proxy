@@ -9,6 +9,11 @@ import (
 	tmlog "github.com/tendermint/tmlibs/log"
 )
 
+type ValidatorSetChange struct {
+	Diffs           []*types.Validator
+	ScheduledHeight uint64
+}
+
 // ProxyApplication is a super-simple proxy example.
 // It just passes (almost) everything to another abci application
 // However, if the CheckTX/DeliverTX starts with a given prefix, it echos the result
@@ -18,7 +23,9 @@ type ProxyApplication struct {
 	logger tmlog.Logger
 	prefix []byte
 
-	newValidators chan []*types.Validator
+	lastHeight   uint64
+	diffsChannel chan ValidatorSetChange
+	diffs        map[uint64]ValidatorSetChange
 }
 
 var _ types.Application = &ProxyApplication{}
@@ -34,7 +41,9 @@ func NewProxyAppWithLogger(next abcicli.Client, prefix []byte, logger tmlog.Logg
 		prefix: prefix,
 		logger: logger,
 		//TODO: maybe a buffer of one isn't enough.
-		newValidators: make(chan []*types.Validator, 1),
+		diffsChannel: make(chan ValidatorSetChange, 1),
+		diffs:        make(map[uint64]ValidatorSetChange),
+		lastHeight:   0,
 	}
 }
 
@@ -96,39 +105,64 @@ func (app *ProxyApplication) BeginBlock(hash []byte, header *types.Header) {
 	_ = app.next.BeginBlockSync(hash, header)
 }
 
-func (app *ProxyApplication) ChangeValidator(newValidators []*types.Validator, targetHeight uint64) {
+func (app *ProxyApplication) ChangeValidator(newValidators []*types.Validator, targetHeight uint64) error {
 	app.logger.Debug("received new validator set",
 		"validators", newValidators,
 		"targetHeight", targetHeight)
-	app.newValidators <- newValidators
+	if targetHeight <= app.lastHeight {
+		return fmt.Errorf("Could not schedule for a block height back in time (wanted:%d, current:%d)", targetHeight, app.lastHeight)
+	}
+	app.diffsChannel <- ValidatorSetChange{
+		Diffs:           newValidators,
+		ScheduledHeight: targetHeight,
+	}
+	return nil
 }
 
-func mergeValidatorChanges(merged, newChanges []*types.Validator) []*types.Validator {
+func mergeValidatorDiffs(merged, newChanges []*types.Validator) []*types.Validator {
 	//TODO: maybe we should require something more involved, like notsubmitting two same changes
 	return append(merged, newChanges...)
 }
 
 func (app *ProxyApplication) EndBlock(height uint64) (resEndBlock types.ResponseEndBlock) {
 	LogCall(app.logger, "height", height)
+	app.lastHeight = height
 	// TODO: better error handling!
 	res, _ := app.next.EndBlockSync(height)
 
 	// get the latest validator changes by consuming all pending changes
-	diffs := make([]*types.Validator, 0)
 	haveValidators := true
 	for haveValidators == true {
 		select {
-		case validators := <-app.newValidators:
-			diffs = mergeValidatorChanges(diffs, validators)
+		case change := <-app.diffsChannel:
+			if change.ScheduledHeight < height {
+				app.logger.Error("got a validator change too late",
+					"currentHeight", height,
+					"targetHeight", change.ScheduledHeight,
+					"diffs", change.Diffs)
+			}
+			if c, ok := app.diffs[change.ScheduledHeight]; ok == true {
+				c.Diffs = mergeValidatorDiffs(c.Diffs, change.Diffs)
+				app.diffs[change.ScheduledHeight] = c
+			} else {
+				app.diffs[change.ScheduledHeight] = change
+			}
 		default:
 			//if none pending simply stop the consuming
 			haveValidators = false
 		}
 	}
 
-	res.Diffs = diffs
-	if len(diffs) != 0 {
-		app.logger.Debug("submitting new validators", "validators", diffs)
+	if c, ok := app.diffs[height]; ok == true {
+		res.Diffs = c.Diffs
+		delete(app.diffs, height)
+	} else {
+		// remove any target app wanted changes
+		res.Diffs = nil
+	}
+
+	if len(res.Diffs) != 0 {
+		app.logger.Debug("submitting new validators", "validators", res.Diffs)
 	}
 
 	return res
