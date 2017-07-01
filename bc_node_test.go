@@ -3,7 +3,6 @@ package abciproxy
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,9 +30,10 @@ type BCNode struct {
 	tmNodeOutput *bytes.Buffer
 
 	//proxy app management
-	proxy       cmn.Service
-	appClient   abcicli.Client
-	proxyOutput *bytes.Buffer
+	proxy        *ProxyApplication
+	proxyService cmn.Service
+	appClient    abcicli.Client
+	proxyOutput  *bytes.Buffer
 	// target app management
 
 	testApplication *TestApplication
@@ -59,7 +59,7 @@ func NewBCNode(ID BCNodeID, genesisPath string, rootDir string) (*BCNode, error)
 
 	res := &BCNode{
 		ID:              ID,
-		wDir:            filepath.Join(rootDir, fmt.Sprintf("BCNode%2d", ID)),
+		wDir:            filepath.Join(rootDir, fmt.Sprintf("BCNode%02d", ID)),
 		tmNodeOutput:    bytes.NewBuffer(make([]byte, 0, 4096)),
 		proxyOutput:     bytes.NewBuffer(make([]byte, 0, 4096)),
 		appOutput:       bytes.NewBuffer(make([]byte, 0, 4096)),
@@ -85,7 +85,6 @@ func NewBCNode(ID BCNodeID, genesisPath string, rootDir string) (*BCNode, error)
 func (n *BCNode) Start(peers []*BCNode) error {
 	var err error
 	//start app
-	log.Printf("Starting app %d", n.ID)
 	n.app, err = server.NewServer(fmt.Sprintf("tcp://127.0.0.1:%d", n.AppPort()),
 		"socket",
 		n.testApplication)
@@ -101,26 +100,25 @@ func (n *BCNode) Start(peers []*BCNode) error {
 
 	//start proxy
 	n.appClient = abcicli.NewSocketClient(fmt.Sprintf("tcp://127.0.0.1:%d", n.AppPort()), true)
-	log.Printf("Connecting to target app %d", n.ID)
 	if _, err := n.appClient.Start(); err != nil {
 		return err
 	}
 
-	n.proxy, err = server.NewServer(fmt.Sprintf("tcp://127.0.0.1:%d", n.ProxyAppPort()),
+	n.proxy = NewProxyApp(n.appClient, []byte("echo"))
+	n.proxyService, err = server.NewServer(fmt.Sprintf("tcp://127.0.0.1:%d", n.ProxyAppPort()),
 		"socket",
-		NewProxyApp(n.appClient, []byte("echo")))
+		n.proxy)
 	if err != nil {
 		return err
 	}
 
-	n.proxy.SetLogger(tmlog.NewTMLogger(tmlog.NewSyncWriter(n.proxyOutput)).With("module", "abci-server"))
-	if _, err := n.proxy.Start(); err != nil {
+	n.proxyService.SetLogger(tmlog.NewTMLogger(tmlog.NewSyncWriter(n.proxyOutput)).With("module", "abci-server"))
+	if _, err := n.proxyService.Start(); err != nil {
 		return err
 	}
 
 	//generate the list of peers
 
-	log.Printf("Starting tendermint node %d", n.ID)
 	//start tendermint node
 	n.tmNodeCmd = exec.Command("tendermint", "node",
 		"--home", n.wDir,
@@ -160,17 +158,26 @@ func (n *BCNode) Stop() error {
 	//stop tendermint
 	err := n.tmNodeCmd.Process.Signal(syscall.SIGINT)
 	if err != nil {
-		return fmt.Errorf("Could not interrupt tendermint node: %s\n---output---\n%s", err, n.tmNodeOutput.String())
+		return fmt.Errorf("Could not interrupt tendermint node [%d]: %s\n---output---\n%s", n.ID, err, n.tmNodeOutput.String())
 	}
+
 	err = n.tmNodeCmd.Wait()
 	if err != nil && err.Error() != "signal: interrupt" && err.Error() != "exit status 1" {
-		return fmt.Errorf("Could not wait on interupt of tendermint node: %s\n---output---\n%s", err, n.tmNodeOutput.String())
+		return fmt.Errorf("Could not wait on interupt of tendermint node [%d] : %s\n---output---\n%s", n.ID, err, n.tmNodeOutput.String())
 	}
+
 	//stop proxy
-	n.proxy.Stop()
-	n.appClient.Stop()
+	if ok := n.proxyService.Stop(); ok == false {
+		return fmt.Errorf("Could not stop proxy service %d", n.ID)
+	}
+	if ok := n.appClient.Stop(); ok == false {
+		return fmt.Errorf("Could not close target app connection %d", n.ID)
+	}
 	//stop app
-	n.app.Stop()
+	if ok := n.app.Stop(); ok == false {
+		return fmt.Errorf("Could not stop target app %d", n.ID)
+	}
+
 	return nil
 }
 

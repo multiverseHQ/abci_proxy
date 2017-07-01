@@ -96,8 +96,10 @@ func (app *ProxyApplication) BeginBlock(hash []byte, header *types.Header) {
 	_ = app.next.BeginBlockSync(hash, header)
 }
 
-func (app *ProxyApplication) ChangeValidator(newValidators []*types.Validator) {
-	app.logger.Debug("received new validator set", "validators", newValidators)
+func (app *ProxyApplication) ChangeValidator(newValidators []*types.Validator, targetHeight uint64) {
+	app.logger.Debug("received new validator set",
+		"validators", newValidators,
+		"targetHeight", targetHeight)
 	app.newValidators <- newValidators
 }
 
