@@ -37,7 +37,7 @@ func (s *RPCSuite) SetUpSuite(c *C) {
 
 	//only in this suite please, as we cannot stop it
 	address := fmt.Sprintf("127.0.0.1:%d", s.node.RPCProxyPort())
-	s.node.proxy.StartRPCServerr("tcp://" + address)
+	s.node.proxy.StartRPCServer("tcp://" + address)
 
 	s.genesisFile, err = tmtypes.GenesisDocFromFile(filepath.Join(s.node.WorkingDir(), "genesis.json"))
 	c.Assert(err, IsNil)
