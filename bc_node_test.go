@@ -104,7 +104,7 @@ func (n *BCNode) Start(peers []*BCNode) error {
 		return err
 	}
 
-	n.proxy = NewProxyApp(n.appClient, []byte("echo"))
+	n.proxy = NewProxyApp(n.appClient)
 	n.proxyService, err = server.NewServer(fmt.Sprintf("tcp://127.0.0.1:%d", n.ProxyAppPort()),
 		"socket",
 		n.proxy)

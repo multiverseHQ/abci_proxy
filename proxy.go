@@ -1,7 +1,6 @@
 package abciproxy
 
 import (
-	"bytes"
 	"fmt"
 
 	abcicli "github.com/tendermint/abci/client"
@@ -21,8 +20,8 @@ type ProxyApplication struct {
 	types.BaseApplication
 	next   abcicli.Client
 	logger tmlog.Logger
-	prefix []byte
 
+	// to change concurrently the validator set
 	lastHeight   uint64
 	diffsChannel chan ValidatorSetChange
 	diffs        map[uint64]ValidatorSetChange
@@ -30,25 +29,20 @@ type ProxyApplication struct {
 
 var _ types.Application = &ProxyApplication{}
 
-func NewProxyApp(next abcicli.Client, prefix []byte) *ProxyApplication {
-	return NewProxyAppWithLogger(next, prefix, tmlog.NewNopLogger())
+func NewProxyApp(next abcicli.Client) *ProxyApplication {
+	return NewProxyAppWithLogger(next, tmlog.NewNopLogger())
 
 }
 
-func NewProxyAppWithLogger(next abcicli.Client, prefix []byte, logger tmlog.Logger) *ProxyApplication {
+func NewProxyAppWithLogger(next abcicli.Client, logger tmlog.Logger) *ProxyApplication {
 	return &ProxyApplication{
 		next:   next,
-		prefix: prefix,
 		logger: logger,
 		//TODO: maybe a buffer of one isn't enough.
 		diffsChannel: make(chan ValidatorSetChange, 1),
 		diffs:        make(map[uint64]ValidatorSetChange),
 		lastHeight:   0,
 	}
-}
-
-func (app *ProxyApplication) makeEcho(tx []byte) string {
-	return fmt.Sprintf("Echo: %s", string(tx[len(app.prefix):]))
 }
 
 func (app *ProxyApplication) Info() (resInfo types.ResponseInfo) {
@@ -67,17 +61,11 @@ func (app *ProxyApplication) SetOption(key string, value string) (log string) {
 
 func (app *ProxyApplication) DeliverTx(tx []byte) types.Result {
 	LogCall(app.logger, "tx", tx)
-	if bytes.HasPrefix(tx, app.prefix) {
-		return types.NewResultOK(nil, app.makeEcho(tx))
-	}
 	return app.next.DeliverTxSync(tx)
 }
 
 func (app *ProxyApplication) CheckTx(tx []byte) types.Result {
 	LogCall(app.logger, "tx", tx)
-	if bytes.HasPrefix(tx, app.prefix) {
-		return types.NewResultOK(nil, app.makeEcho(tx))
-	}
 	return app.next.CheckTxSync(tx)
 }
 
@@ -130,7 +118,7 @@ func (app *ProxyApplication) EndBlock(height uint64) (resEndBlock types.Response
 	// TODO: better error handling!
 	res, _ := app.next.EndBlockSync(height)
 
-	// get the latest validator changes by consuming all pending changes
+	//
 	haveValidators := true
 	for haveValidators == true {
 		select {
