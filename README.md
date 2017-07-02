@@ -10,21 +10,77 @@ web-interface, and another set to pass-by request and response between
 tendermint and the target client app.
 
 
-## Hard test infrastructure
+## RPC Remote calls
 
-- launch golang code
+There are two RPC calls implemented by the proxy (default listening port `46660` )
 
---> tendermint docker (0.10.0) use it as it is.
+### Method `current_height`
 
---> ABCI proxy (in this github Repo.)
+* params: none
+* results: 
+  * Height : the current height
+ 
+#### Example JSON request
 
---> Counter Example Application (https://github.com/multiverseHQ/abci_sample)
+```json
+{
+	"method": "current_height",
+	"jsonrpc": "2.0",
+	"params": [],
+	"id": "dontcare"
+}
+```
 
-# 1st Goal
+#### Example JSON response
 
---> make sure the 3 instances talk to each other.
+```json
+{
+	"jsonrpc": "2.0",
+	"id": "dontcare",
+	"result": {
+		"height" : 1234
+	},
+	"error": ""
+}
+```
 
-# 2nd Goal
-- run the 3 instances on 5 nodes (4 first nodes are validators, 1 others just observer)
+### Method `change_validators`
 
-when the block 1000 arrives, then ABCi proxy change the 1 observer to 1 validator
+* params: 
+  * `validators`: the list of validators to change
+  * `scheduled_height` : the scheduled height (should be higher than current_height
+*  results:  none
+
+#### example JSON request
+
+```json
+{
+	"method": "change_validators",
+	"jsonrpc": "2.0",
+	"params": {
+		"scheduled_height": 1234,
+		"validators":[
+		{
+			"pubKey": "<PUBKEY1>",
+			"power" : 10
+		},
+		{
+			"pubKey": "<PUBKEY2>",
+			"power" : 20
+		}
+		]
+	},
+	"id": "dontcare"
+}
+```
+
+#### Example JSON response
+
+```json
+{
+	"jsonrpc": "2.0",
+	"id": "dontcare",
+	"result": {},
+	"error": ""
+}
+```

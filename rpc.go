@@ -33,8 +33,6 @@ func (app *ProxyApplication) StartRPCServer(rpcAddress string) {
 	mux.HandleFunc("/websocket/endpoint", wm.WebsocketHandler)
 
 	go func() {
-		app.
-			logger.Info("start RPC server", "address", rpcAddress)
 		_, err := rpcserver.StartHTTPServer(rpcAddress, mux, app.logger)
 		if err != nil {
 			panic(err)

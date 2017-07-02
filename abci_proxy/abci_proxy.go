@@ -43,7 +43,7 @@ func Execute() error {
 		return err
 	}
 
-	proxy := abciproxy.NewProxyApp(next)
+	proxy := abciproxy.NewProxyAppWithLogger(next, logger)
 	// Start the listener
 	srv, err := server.NewServer(opts.Address, opts.ABCIType, proxy)
 	if err != nil {
