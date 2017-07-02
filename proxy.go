@@ -1,13 +1,17 @@
 package abciproxy
 
 import (
-	"bytes"
 	"fmt"
 
 	abcicli "github.com/tendermint/abci/client"
 	"github.com/tendermint/abci/types"
 	tmlog "github.com/tendermint/tmlibs/log"
 )
+
+type ValidatorSetChange struct {
+	Diffs           []*types.Validator
+	ScheduledHeight uint64
+}
 
 // ProxyApplication is a super-simple proxy example.
 // It just passes (almost) everything to another abci application
@@ -16,26 +20,28 @@ type ProxyApplication struct {
 	types.BaseApplication
 	next   abcicli.Client
 	logger tmlog.Logger
-	prefix []byte
+
+	// to change concurrently the validator set
+	lastHeight   uint64
+	diffsChannel chan ValidatorSetChange
+	diffs        map[uint64]ValidatorSetChange
 }
 
 var _ types.Application = &ProxyApplication{}
 
-func NewProxyApp(next abcicli.Client, prefix []byte) *ProxyApplication {
-	return NewProxyAppWithLogger(next, prefix, tmlog.NewNopLogger())
-
+func NewProxyApp(next abcicli.Client) *ProxyApplication {
+	return NewProxyAppWithLogger(next, tmlog.NewNopLogger())
 }
 
-func NewProxyAppWithLogger(next abcicli.Client, prefix []byte, logger tmlog.Logger) *ProxyApplication {
+func NewProxyAppWithLogger(next abcicli.Client, logger tmlog.Logger) *ProxyApplication {
 	return &ProxyApplication{
 		next:   next,
-		prefix: prefix,
 		logger: logger,
+		//TODO: maybe a buffer of one isn't enough.
+		diffsChannel: make(chan ValidatorSetChange, 1),
+		diffs:        make(map[uint64]ValidatorSetChange),
+		lastHeight:   0,
 	}
-}
-
-func (app *ProxyApplication) makeEcho(tx []byte) string {
-	return fmt.Sprintf("Echo: %s", string(tx[len(app.prefix):]))
 }
 
 func (app *ProxyApplication) Info() (resInfo types.ResponseInfo) {
@@ -54,17 +60,11 @@ func (app *ProxyApplication) SetOption(key string, value string) (log string) {
 
 func (app *ProxyApplication) DeliverTx(tx []byte) types.Result {
 	LogCall(app.logger, "tx", tx)
-	if bytes.HasPrefix(tx, app.prefix) {
-		return types.NewResultOK(nil, app.makeEcho(tx))
-	}
 	return app.next.DeliverTxSync(tx)
 }
 
 func (app *ProxyApplication) CheckTx(tx []byte) types.Result {
 	LogCall(app.logger, "tx", tx)
-	if bytes.HasPrefix(tx, app.prefix) {
-		return types.NewResultOK(nil, app.makeEcho(tx))
-	}
 	return app.next.CheckTxSync(tx)
 }
 
@@ -92,9 +92,65 @@ func (app *ProxyApplication) BeginBlock(hash []byte, header *types.Header) {
 	_ = app.next.BeginBlockSync(hash, header)
 }
 
+func (app *ProxyApplication) ChangeValidators(newValidators []*types.Validator, targetHeight uint64) error {
+	app.logger.Debug("received new validator set",
+		"validators", newValidators,
+		"targetHeight", targetHeight)
+	if targetHeight <= app.lastHeight {
+		return fmt.Errorf("Could not schedule for a block height back in time (wanted:%d, current:%d)", targetHeight, app.lastHeight)
+	}
+	app.diffsChannel <- ValidatorSetChange{
+		Diffs:           newValidators,
+		ScheduledHeight: targetHeight,
+	}
+	return nil
+}
+
+func mergeValidatorDiffs(merged, newChanges []*types.Validator) []*types.Validator {
+	//TODO: maybe we should require something more involved, like notsubmitting two same changes
+	return append(merged, newChanges...)
+}
+
 func (app *ProxyApplication) EndBlock(height uint64) (resEndBlock types.ResponseEndBlock) {
 	LogCall(app.logger, "height", height)
+	app.lastHeight = height
 	// TODO: better error handling!
 	res, _ := app.next.EndBlockSync(height)
+
+	//
+	haveValidators := true
+	for haveValidators == true {
+		select {
+		case change := <-app.diffsChannel:
+			if change.ScheduledHeight < height {
+				app.logger.Error("got a validator change too late",
+					"currentHeight", height,
+					"targetHeight", change.ScheduledHeight,
+					"diffs", change.Diffs)
+			}
+			if c, ok := app.diffs[change.ScheduledHeight]; ok == true {
+				c.Diffs = mergeValidatorDiffs(c.Diffs, change.Diffs)
+				app.diffs[change.ScheduledHeight] = c
+			} else {
+				app.diffs[change.ScheduledHeight] = change
+			}
+		default:
+			//if none pending simply stop the consuming
+			haveValidators = false
+		}
+	}
+
+	if c, ok := app.diffs[height]; ok == true {
+		res.Diffs = c.Diffs
+		delete(app.diffs, height)
+	} else {
+		// remove any target app wanted changes
+		res.Diffs = nil
+	}
+
+	if len(res.Diffs) != 0 {
+		app.logger.Debug("submitting new validators", "validators", res.Diffs)
+	}
+
 	return res
 }
