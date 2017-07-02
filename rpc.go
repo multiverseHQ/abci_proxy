@@ -14,7 +14,7 @@ type CurrentHeightResult struct {
 type ChangeValidatorsResult struct {
 }
 
-func (app *ProxyApplication) StartRPCServerr(rpcAddress string) {
+func (app *ProxyApplication) StartRPCServer(rpcAddress string) {
 
 	var routes = map[string]*rpcserver.RPCFunc{
 		"change_validators": rpcserver.NewRPCFunc(func(validators []*types.Validator, scheduledHeight uint64) (*ChangeValidatorsResult, error) {

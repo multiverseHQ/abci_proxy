@@ -5,11 +5,11 @@ import (
 	"os"
 
 	"github.com/MultiverseHQ/abci_proxy"
-	cmn "github.com/tendermint/tmlibs/common"
 	tmlog "github.com/tendermint/tmlibs/log"
 
 	abcicli "github.com/tendermint/abci/client"
 	"github.com/tendermint/abci/server"
+	cmn "github.com/tendermint/tmlibs/common"
 )
 
 var logger tmlog.Logger
@@ -43,8 +43,9 @@ func Execute() error {
 		return err
 	}
 
+	proxy := abciproxy.NewProxyApp(next)
 	// Start the listener
-	srv, err := server.NewServer(opts.Address, opts.ABCIType, abciproxy.NewProxyApp(next, []byte("echo")))
+	srv, err := server.NewServer(opts.Address, opts.ABCIType, proxy)
 	if err != nil {
 		return err
 	}
@@ -52,6 +53,8 @@ func Execute() error {
 	if _, err := srv.Start(); err != nil {
 		return err
 	}
+
+	proxy.StartRPCServer(opts.RPCAddress)
 
 	// Wait forever
 	cmn.TrapSignal(func() {
