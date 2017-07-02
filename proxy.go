@@ -94,7 +94,7 @@ func (app *ProxyApplication) BeginBlock(hash []byte, header *types.Header) {
 	_ = app.next.BeginBlockSync(hash, header)
 }
 
-func (app *ProxyApplication) ChangeValidator(newValidators []*types.Validator, targetHeight uint64) error {
+func (app *ProxyApplication) ChangeValidators(newValidators []*types.Validator, targetHeight uint64) error {
 	app.logger.Debug("received new validator set",
 		"validators", newValidators,
 		"targetHeight", targetHeight)
@@ -164,11 +164,11 @@ type CurrentHeightResult struct {
 type ChangeValidatorsResult struct {
 }
 
-func (app *ProxyApplication) StartRPCServerr(rcpAddress string) {
+func (app *ProxyApplication) StartRPCServerr(rpcAddress string) {
 
 	var routes = map[string]*rpcserver.RPCFunc{
 		"change_validators": rpcserver.NewRPCFunc(func(validators []*types.Validator, scheduledHeight uint64) (*ChangeValidatorsResult, error) {
-			err := app.ChangeValidator(validators, scheduledHeight)
+			err := app.ChangeValidators(validators, scheduledHeight)
 			return &ChangeValidatorsResult{}, err
 		}, "validators,scheduled_height"),
 		"current_height": rpcserver.NewRPCFunc(func() (*CurrentHeightResult, error) {
@@ -183,8 +183,9 @@ func (app *ProxyApplication) StartRPCServerr(rcpAddress string) {
 	mux.HandleFunc("/websocket/endpoint", wm.WebsocketHandler)
 
 	go func() {
-		logger.Info("start RPC server", "address", rpcAddress)
-		_, err := rpcserver.StartHTTPServer(rpcAddress, mux, logger)
+		app.
+			logger.Info("start RPC server", "address", rpcAddress)
+		_, err := rpcserver.StartHTTPServer(rpcAddress, mux, app.logger)
 		if err != nil {
 			panic(err)
 		}

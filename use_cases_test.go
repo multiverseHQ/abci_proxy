@@ -88,7 +88,7 @@ func (s *UseCaseSuite) TearDownSuite(c *C) {
 func (s *UseCaseSuite) SetUpTest(c *C) {
 	s.nodes = nil
 	for i := 0; i < TotalTestNode; i++ {
-		n, err := NewBCNode(BCNodeID(i), s.genesisPath, s.testHome)
+		n, err := NewBCNode(BCNodeID(i), s.testHome)
 		c.Assert(err, IsNil, Commentf("Could not create node %d: %s", i, err))
 		s.nodes = append(s.nodes, n)
 	}
@@ -212,7 +212,7 @@ func (s *UseCaseSuite) TestCanMakeObserverAValidator(c *C) {
 
 	s.nodes[0].testApplication.EndBlockCalls.WaitForExpected()
 	for _, n := range s.nodes {
-		n.proxy.ChangeValidator(validators, 10)
+		n.proxy.ChangeValidators(validators, 10)
 		n.testApplication.EndBlockCalls.ExpectCall(4)
 	}
 

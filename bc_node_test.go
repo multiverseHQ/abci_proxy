@@ -47,12 +47,12 @@ const ProxyAppPortStart int = 50000
 const RPCPortStart int = 50100
 const P2PPortStart int = 50200
 const AppPortStart int = 50300
+const RPCProxyStart int = 50400
 
 // NewBCNode instantiate a new node for testing ID should be unique
 // between 0 and 99, rootDir is the path to a directory where all
-// config data will be stored. genesisPath is the path to the genesis
-// file to use
-func NewBCNode(ID BCNodeID, genesisPath string, rootDir string) (*BCNode, error) {
+// config data will be stored.
+func NewBCNode(ID BCNodeID, rootDir string) (*BCNode, error) {
 	if ID > MaxBCNodeID {
 		return nil, fmt.Errorf("Maximum  BCNodeID for test is %d, got %d", MaxBCNodeID, ID)
 	}
@@ -116,8 +116,6 @@ func (n *BCNode) Start(peers []*BCNode) error {
 	if _, err := n.proxyService.Start(); err != nil {
 		return err
 	}
-
-	//generate the list of peers
 
 	//start tendermint node
 	n.tmNodeCmd = exec.Command("tendermint", "node",
@@ -196,6 +194,10 @@ func (n *BCNode) P2PPort() int {
 
 func (n *BCNode) AppPort() int {
 	return AppPortStart + int(n.ID)
+}
+
+func (n *BCNode) RPCProxyPort() int {
+	return RPCProxyStart + int(n.ID)
 }
 
 func (n *BCNode) WorkingDir() string {
