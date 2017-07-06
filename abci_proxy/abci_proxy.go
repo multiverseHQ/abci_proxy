@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/MultiverseHQ/abci_proxy"
 	tmlog "github.com/tendermint/tmlibs/log"
@@ -39,8 +40,15 @@ func Execute() error {
 
 	next := abcicli.NewSocketClient(opts.AppAddress, true)
 	logger.Info("Connecting to client target application")
-	if _, err := next.Start(); err != nil {
-		return err
+
+	for {
+		if _, err := next.Start(); err != nil {
+			retryTime := 3 * time.Second
+			logger.Error("Got connection error", "error", err, "retry", retryTime.String())
+			time.Sleep(retryTime)
+			continue
+		}
+		break
 	}
 
 	proxy := abciproxy.NewProxyAppWithLogger(next, logger)
