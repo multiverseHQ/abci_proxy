@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/tendermint/abci/types"
 	"github.com/tendermint/tendermint/rpc/lib/client"
 	tmtypes "github.com/tendermint/tendermint/types"
 
@@ -70,20 +69,19 @@ func (s *RPCSuite) TestCanFetchCurrentHeight(c *C) {
 func (s *RPCSuite) TestCanChangeValidators(c *C) {
 	s.node.testApplication.EndBlockCalls.ExpectCall(2)
 	s.node.testApplication.EndBlockCalls.WaitForExpected()
-
 	// change should be in the future
 	res := new(ChangeValidatorsResult)
 	_, err := s.cli.Call("change_validators", map[string]interface{}{
 		"scheduled_height": s.node.proxy.lastHeight - 1,
-		"validators":       []*types.Validator{},
+		"validators":       []*ValidatorPowerChange{},
 	}, res)
 	c.Check(err, ErrorMatches, `Response error: Could not schedule for a block height back in time.*`)
 
 	_, err = s.cli.Call("change_validators", map[string]interface{}{
 		"scheduled_height": s.node.proxy.lastHeight + 5,
-		"validators": []*types.Validator{
-			&types.Validator{
-				PubKey: s.genesisFile.Validators[0].PubKey.Bytes(),
+		"validators": []*ValidatorPowerChange{
+			&ValidatorPowerChange{
+				PubKey: s.genesisFile.Validators[0].PubKey,
 				Power:  20,
 			},
 		},

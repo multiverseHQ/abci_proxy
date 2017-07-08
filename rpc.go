@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/tendermint/abci/types"
+	"github.com/tendermint/go-crypto"
 	"github.com/tendermint/tendermint/rpc/lib/server"
 )
 
@@ -14,11 +15,23 @@ type CurrentHeightResult struct {
 type ChangeValidatorsResult struct {
 }
 
+type ValidatorPowerChange struct {
+	PubKey crypto.PubKey `json:"pub_key"`
+	Power  uint64        `json:"power"`
+}
+
 func (app *ProxyApplication) StartRPCServer(rpcAddress string) {
 
 	var routes = map[string]*rpcserver.RPCFunc{
-		"change_validators": rpcserver.NewRPCFunc(func(validators []*types.Validator, scheduledHeight uint64) (*ChangeValidatorsResult, error) {
-			err := app.ChangeValidators(validators, scheduledHeight)
+		"change_validators": rpcserver.NewRPCFunc(func(validators []*ValidatorPowerChange, scheduledHeight uint64) (*ChangeValidatorsResult, error) {
+			toABCI := make([]*types.Validator, 0, len(validators))
+			for _, vpc := range validators {
+				toABCI = append(toABCI, &types.Validator{
+					PubKey: vpc.PubKey.Bytes(),
+					Power:  vpc.Power,
+				})
+			}
+			err := app.ChangeValidators(toABCI, scheduledHeight)
 			return &ChangeValidatorsResult{}, err
 		}, "validators,scheduled_height"),
 		"current_height": rpcserver.NewRPCFunc(func() (*CurrentHeightResult, error) {
