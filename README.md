@@ -61,14 +61,14 @@ There are two RPC calls implemented by the proxy (default listening port `46660`
 		"scheduled_height": 1234,
 		"validators":[
 		{
-			"pubKey": {
+			"pub_key": {
 				"type" : "<TYPE>",
 				"data" : "<HEXDATA>"
 			},
 			"power" : 10
 		},
 		{
-			"pubKey": {
+			"pub_key": {
 				"type" : "<TYPE>",
 				"data" : "<HEXDATA>"
 			},
